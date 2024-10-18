@@ -28,6 +28,9 @@ namespace UnityStandardAssets.Characters.FirstPerson
         [SerializeField] private AudioClip m_JumpSound;           // the sound played when character leaves the ground.
         [SerializeField] private AudioClip m_LandSound;           // the sound played when character touches back on ground.
 
+        [SerializeField] private bool m_IsSwimming; //Swimming Additions
+        [SerializeField] private float m_SwimGravityMultiplier; //Swimming Additions
+
         private Camera m_Camera;
         private bool m_Jump;
         private float m_YRotation;
@@ -65,7 +68,7 @@ namespace UnityStandardAssets.Characters.FirstPerson
             // the jump state needs to read here to make sure it is not missed
             if (!m_Jump)
             {
-                m_Jump = CrossPlatformInputManager.GetButtonDown("Jump");
+                m_Jump = Input.GetKey(KeyCode.Space);
             }
 
             if (!m_PreviouslyGrounded && m_CharacterController.isGrounded)
@@ -109,10 +112,10 @@ namespace UnityStandardAssets.Characters.FirstPerson
             m_MoveDir.z = desiredMove.z*speed;
 
 
-            if (m_CharacterController.isGrounded)
+            if (m_CharacterController.isGrounded &&!m_IsSwimming)
             {
                 m_MoveDir.y = -m_StickToGroundForce;
-
+            
                 if (m_Jump)
                 {
                     m_MoveDir.y = m_JumpSpeed;
@@ -123,8 +126,31 @@ namespace UnityStandardAssets.Characters.FirstPerson
             }
             else
             {
-                m_MoveDir += Physics.gravity*m_GravityMultiplier*Time.fixedDeltaTime;
+                if (!m_IsSwimming) //Swimming Additions
+                {
+                    m_MoveDir += Physics.gravity * m_GravityMultiplier * Time.fixedDeltaTime;
+                }
+                else
+                {
+                    //Swim
+                    m_MoveDir.x = desiredMove.x * speed;
+                    m_MoveDir.z = desiredMove.z * speed;
+                    m_MoveDir.y += Physics.gravity.y * m_SwimGravityMultiplier * Time.fixedDeltaTime;
+                    if (m_Jump)
+                    {
+                        m_MoveDir.y = m_JumpSpeed * 0.25f;
+                        m_Jump = false;
+                        m_Jumping = true;
+                    }
+                }
             }
+            //else
+            //{
+                //m_MoveDir += Physics.gravity*m_GravityMultiplier*Time.fixedDeltaTime;
+            //}
+
+            
+
             m_CollisionFlags = m_CharacterController.Move(m_MoveDir*Time.fixedDeltaTime);
 
             ProgressStepCycle(speed);
@@ -254,6 +280,25 @@ namespace UnityStandardAssets.Characters.FirstPerson
                 return;
             }
             body.AddForceAtPosition(m_CharacterController.velocity*0.1f, hit.point, ForceMode.Impulse);
+        }
+
+        private void OnTriggerEnter(Collider coll) //Swimming Additions
+        {
+            Debug.Log("entered trigger with " + coll.gameObject.name);
+            if (coll.gameObject.name == "WaterCollider")
+            {
+                m_IsSwimming = true;
+                m_IsWalking = false;
+            }
+        }
+        private void OnTriggerExit(Collider coll) //Swimming Additions
+        {
+            Debug.Log("left trigger with " + coll.gameObject.name);
+            if (coll.gameObject.name == "WaterCollider")
+            {
+                m_IsSwimming = false;
+                m_IsWalking = true;
+            }
         }
     }
 }
