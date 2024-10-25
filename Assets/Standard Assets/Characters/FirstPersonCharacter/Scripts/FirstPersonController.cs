@@ -30,6 +30,8 @@ namespace UnityStandardAssets.Characters.FirstPerson
 
         [SerializeField] private bool m_IsSwimming; //Swimming Additions
         [SerializeField] private float m_SwimGravityMultiplier; //Swimming Additions
+        [SerializeField] private bool m_IsInMud; //Mud Additions
+        [SerializeField] private GameObject FireRock; //Light Fire Additions
 
         private Camera m_Camera;
         private bool m_Jump;
@@ -99,6 +101,8 @@ namespace UnityStandardAssets.Characters.FirstPerson
         {
             float speed;
             GetInput(out speed);
+            float mudSpeed = speed * 0.25f;
+
             // always move along the camera forward as it is the direction that it being aimed at
             Vector3 desiredMove = transform.forward*m_Input.y + transform.right*m_Input.x;
 
@@ -108,9 +112,16 @@ namespace UnityStandardAssets.Characters.FirstPerson
                                m_CharacterController.height/2f, Physics.AllLayers, QueryTriggerInteraction.Ignore);
             desiredMove = Vector3.ProjectOnPlane(desiredMove, hitInfo.normal).normalized;
 
-            m_MoveDir.x = desiredMove.x*speed;
-            m_MoveDir.z = desiredMove.z*speed;
-
+            if (m_IsInMud)
+            {
+                m_MoveDir.x = desiredMove.x * mudSpeed;
+                m_MoveDir.z = desiredMove.z * mudSpeed;
+            }
+            else
+            {
+                m_MoveDir.x = desiredMove.x * speed;
+                m_MoveDir.z = desiredMove.z * speed;
+            }
 
             if (m_CharacterController.isGrounded &&!m_IsSwimming)
             {
@@ -138,19 +149,15 @@ namespace UnityStandardAssets.Characters.FirstPerson
                     m_MoveDir.y += Physics.gravity.y * m_SwimGravityMultiplier * Time.fixedDeltaTime;
                     if (m_Jump)
                     {
-                        m_MoveDir.y = m_JumpSpeed * 0.25f;
+                        m_MoveDir.y = m_JumpSpeed * 0.3f;
                         m_Jump = false;
                         m_Jumping = true;
                     }
                 }
             }
-            //else
-            //{
-                //m_MoveDir += Physics.gravity*m_GravityMultiplier*Time.fixedDeltaTime;
-            //}
 
-            
 
+        
             m_CollisionFlags = m_CharacterController.Move(m_MoveDir*Time.fixedDeltaTime);
 
             ProgressStepCycle(speed);
@@ -282,22 +289,46 @@ namespace UnityStandardAssets.Characters.FirstPerson
             body.AddForceAtPosition(m_CharacterController.velocity*0.1f, hit.point, ForceMode.Impulse);
         }
 
-        private void OnTriggerEnter(Collider coll) //Swimming Additions
+        private void OnTriggerEnter(Collider coll) 
         {
-            Debug.Log("entered trigger with " + coll.gameObject.name);
+            Debug.Log("entered trigger with " + coll.gameObject.name); //Swimming Additions
             if (coll.gameObject.name == "WaterCollider")
             {
                 m_IsSwimming = true;
                 m_IsWalking = false;
+                //set fog on when underwater
+                RenderSettings.fog = true;
+            }
+            if (coll.gameObject.tag == "MudSurface") //Mud Additions
+            {
+                m_IsInMud = true;
+                m_IsWalking = false;
+            }
+            if (coll.gameObject.tag == "LightFire")
+            {
+                //Switch fire on
+                FireRock.GetComponent<Light>().enabled = true;
+
             }
         }
-        private void OnTriggerExit(Collider coll) //Swimming Additions
+        private void OnTriggerExit(Collider coll) 
         {
-            Debug.Log("left trigger with " + coll.gameObject.name);
+            Debug.Log("left trigger with " + coll.gameObject.name); //Swimming Additions
             if (coll.gameObject.name == "WaterCollider")
             {
                 m_IsSwimming = false;
                 m_IsWalking = true;
+                RenderSettings.fog = false;
+            }
+            if (coll.gameObject.tag == "MudSurface")
+            {
+                m_IsInMud = false;
+                m_IsWalking = true;
+            }
+            if (coll.gameObject.tag == "LightFire")
+            {
+                //Switch fire off
+                FireRock.GetComponent<Light>().enabled = false;
             }
         }
     }
